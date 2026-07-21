@@ -1,0 +1,61 @@
+// =====================================================================
+// GridPulse - Power BI measures
+// Import gridpulse_powerbi_ready.csv and name the table 'Hourly Load'.
+// Set numeric columns to "Don't summarize"; text label columns need no change.
+// =====================================================================
+
+Daily Average Load kW =
+AVERAGE ( 'Hourly Load'[global_active_power_kw] )
+// format: 0.00
+
+Evening Peak Demand kW =
+CALCULATE (
+    AVERAGE ( 'Hourly Load'[global_active_power_kw] ),
+    'Hourly Load'[evening_peak_window_label] = "Evening Peak Window (19:00-21:59)"
+)
+// format: 0.00
+
+Peak vs Average Surge % =
+DIVIDE ( [Evening Peak Demand kW], [Daily Average Load kW] ) - 1
+// format: 0.0%
+
+System Load Factor % =
+AVERAGEX (
+    VALUES ( 'Hourly Load'[date] ),
+    DIVIDE (
+        CALCULATE ( AVERAGE ( 'Hourly Load'[global_active_power_kw] ) ),
+        CALCULATE ( MAX ( 'Hourly Load'[global_active_power_kw] ) )
+    )
+)
+// average of the daily (average load / peak load); format: 0.0%
+
+Sub-Metering 3 Share % =
+DIVIDE (
+    SUM ( 'Hourly Load'[sub_metering_3_hvac_wh] ),
+    SUM ( 'Hourly Load'[sub_metering_1_kitchen_wh] )
+        + SUM ( 'Hourly Load'[sub_metering_2_laundry_wh] )
+        + SUM ( 'Hourly Load'[sub_metering_3_hvac_wh] )
+        + SUM ( 'Hourly Load'[unmetered_other_wh] )
+)
+// share of total energy; format: 0.0%
+
+Shifted Evening Peak kW =
+CALCULATE (
+    AVERAGE ( 'Hourly Load'[shifted_load_kw] ),
+    'Hourly Load'[evening_peak_window_label] = "Evening Peak Window (19:00-21:59)"
+)
+// helper for the scenario measure; format: 0.00
+
+Projected Peak Reduction % =
+DIVIDE ( [Evening Peak Demand kW] - [Shifted Evening Peak kW], [Evening Peak Demand kW] )
+// format: 0.0%
+
+// ---- optional helpers used on the seasonal visual ----
+Winter Avg Load kW =
+CALCULATE ( [Daily Average Load kW], 'Hourly Load'[season_label] = "Winter" )
+
+Summer Avg Load kW =
+CALCULATE ( [Daily Average Load kW], 'Hourly Load'[season_label] = "Summer" )
+
+Winter vs Summer Gap % =
+DIVIDE ( [Winter Avg Load kW], [Summer Avg Load kW] ) - 1
